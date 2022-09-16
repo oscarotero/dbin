@@ -54,7 +54,7 @@ export default async function downloadBin(options: Options) {
   const untar = new Untar(reader);
 
   try {
-    await Deno.mkdir(options.dest, { recursive: true });
+    await Deno.mkdir(dirname(options.dest), { recursive: true });
   } catch {
     // Directory exists
   }
