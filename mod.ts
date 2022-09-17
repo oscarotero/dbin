@@ -22,7 +22,9 @@ export interface Target {
 }
 
 export default async function downloadBin(options: Options): Promise<string> {
-  const dest = resolve(options.dest);
+  const dest = Deno.build.os === "windows"
+    ? resolve(options.dest) + ".exe"
+    : resolve(options.dest);
 
   // Check if the file already exists and return the path
   try {
@@ -79,16 +81,21 @@ export default async function downloadBin(options: Options): Promise<string> {
     const file = await Deno.create(dest);
     await copy(entry, file);
     file.close();
+    break;
+  }
+  reader.close();
+  await Deno.remove(tmp, { recursive: true });
 
+  // Change file permissions
+  try {
     if (options.chmod) {
       await Deno.chmod(dest, options.chmod);
     } else {
       await Deno.chmod(dest, 0o764);
     }
-    break;
+  } catch {
+    // Not supported on Windows
   }
-  reader.close();
-  await Deno.remove(tmp, { recursive: true });
   return dest;
 }
 
