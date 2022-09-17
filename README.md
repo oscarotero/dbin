@@ -27,9 +27,10 @@ This function does the following:
 - Download the file.
 - It also download the `.sha256` file and check the `SHA-256 checksum`.
 - Decompress the `.tar.gz` file.
-- Output to the `dest` path (`./_bin/pagefind` in the example).
-- Change the output file permissions to `0o764`. Set the `chmod` option for
-  other value compatible with
+- Output to the `dest` file (`./_bin/pagefind` in the example). If the current
+  os is Windows, the `.exe` extension is appended to the file name.
+- Change the output file permissions to `0o764` (except in Windows). Set the
+  `chmod` option for other value compatible with
   [Deno.chmod](https://doc.deno.land/deno/stable/~/Deno.chmod).
 - Returns the full path to the executable file.
 - If the function is executed again, and the dest file exists, it does nothing.
