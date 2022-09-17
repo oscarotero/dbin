@@ -6,7 +6,7 @@ correct platform. Example:
 ```ts
 import dbin from "https://deno.land/x/dbin/mod.ts";
 
-dbin({
+const binfile = await dbin({
   pattern:
     "https://github.com/CloudCannon/pagefind/releases/download/{version}/pagefind-{version}-{target}.tar.gz",
   version: "v0.8.1",
@@ -27,6 +27,10 @@ This function does the following:
 - Download the file.
 - It also download the `.sha256` file and check the `SHA-256 checksum`.
 - Decompress the `.tar.gz` file.
-- Output to the `dest` folder (`./_bin/pagefind` in the example).
+- Output to the `dest` path (`./_bin/pagefind` in the example).
+- Change the output file permissions to `0o764`. Set the `chmod` option for
+  other value compatible with
+  [Deno.chmod](https://doc.deno.land/deno/stable/~/Deno.chmod).
+- Returns the full path to the executable file.
 - If the function is executed again, and the dest file exists, it does nothing.
-  Use `override: true` to download the file again.
+  Set `override: true` to download the file again.

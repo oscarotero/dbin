@@ -1,4 +1,8 @@
-import { dirname, join } from "https://deno.land/std@0.139.0/path/mod.ts";
+import {
+  dirname,
+  join,
+  resolve,
+} from "https://deno.land/std@0.139.0/path/mod.ts";
 import { Untar } from "https://deno.land/std@0.139.0/archive/tar.ts";
 import { copy } from "https://deno.land/std@0.139.0/streams/conversion.ts";
 
@@ -8,6 +12,7 @@ export interface Options {
   targets: Target[];
   dest: string;
   overwrite?: boolean;
+  chmod?: number;
 }
 
 export interface Target {
@@ -16,16 +21,20 @@ export interface Target {
   arch: "x86_64" | "aarch64";
 }
 
-export default async function downloadBin(options: Options) {
+export default async function downloadBin(options: Options): Promise<string> {
+  const dest = resolve(options.dest);
+
+  // Check if the file already exists and return the path
   try {
-    await Deno.stat(options.dest);
+    await Deno.stat(dest);
     if (!options.overwrite) {
-      return;
+      return dest;
     }
   } catch {
     // File does not exist
   }
 
+  // Detect the target
   const target = options.targets.find((target) => {
     return target.os === Deno.build.os && target.arch === Deno.build.arch;
   });
@@ -34,6 +43,7 @@ export default async function downloadBin(options: Options) {
     throw new Error("No target found");
   }
 
+  // Download the tarball
   const url = options.pattern
     .replaceAll("{target}", target.name)
     .replaceAll("{version}", options.version);
@@ -43,6 +53,7 @@ export default async function downloadBin(options: Options) {
 
   await download(new URL(url), join(tmp, "tmp.tar.gz"));
 
+  // Extract the binary
   const tgz = await Deno.open(join(tmp, "tmp.tar.gz"));
   const tar = await Deno.create(join(tmp, "tmp.tar"));
 
@@ -54,24 +65,31 @@ export default async function downloadBin(options: Options) {
   const untar = new Untar(reader);
 
   try {
-    await Deno.mkdir(dirname(options.dest), { recursive: true });
+    await Deno.mkdir(dirname(dest), { recursive: true });
   } catch {
     // Directory exists
   }
 
+  // Copy the first binary file found in the tarball
   for await (const entry of untar) {
     if (entry.type === "directory") {
       continue;
     }
 
-    const file = await Deno.create(options.dest);
+    const file = await Deno.create(dest);
     await copy(entry, file);
     file.close();
-    await Deno.chmod(options.dest, 0o764);
+
+    if (options.chmod) {
+      await Deno.chmod(dest, options.chmod);
+    } else {
+      await Deno.chmod(dest, 0o764);
+    }
     break;
   }
   reader.close();
   await Deno.remove(tmp, { recursive: true });
+  return dest;
 }
 
 async function download(url: URL, dest: string): Promise<void> {
