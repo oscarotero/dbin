@@ -6,19 +6,42 @@ import {
 import { Untar } from "https://deno.land/std@0.139.0/archive/tar.ts";
 import { copy } from "https://deno.land/std@0.139.0/streams/conversion.ts";
 
+type OS = "linux" | "darwin" | "windows";
+type Arch = "x86_64" | "aarch64";
+
 export interface Options {
+  /** Pattern to build the final URL download. It can contains {version} and {target} placeholders. */
   pattern: string;
+
+  /** Version to download. It's used to replace the {version} placeholder in the pattern. */
   version: string;
+
+  /** List of different targets. */
   targets: Target[];
+
+  /** Path to save the binary file. In Windows environments, the extension ".exe" is appended automatically. */
   dest: string;
+
+  /** Set true to override the binary file, if it already exists */
   overwrite?: boolean;
+
+  /**
+   * The permissions applied to the binary file (ignored by Windows)
+   * @see https://doc.deno.land/deno/stable/~/Deno.chmod
+   */
   chmod?: number;
+
+  /** To force a specific OS, instead of getting it from Deno.build.os */
+  os?: OS;
+
+  /** To force a specific arch, instead of getting it from Deno.build.arch */
+  arch?: Arch;
 }
 
 export interface Target {
   name: string;
-  os: "darwin" | "linux" | "windows";
-  arch: "x86_64" | "aarch64";
+  os: OS;
+  arch: Arch;
 }
 
 export default async function downloadBin(options: Options): Promise<string> {
@@ -30,6 +53,7 @@ export default async function downloadBin(options: Options): Promise<string> {
   try {
     await Deno.stat(dest);
     if (!options.overwrite) {
+      console.log(`Using binary file at ${dest}`);
       return dest;
     }
   } catch {
@@ -37,9 +61,11 @@ export default async function downloadBin(options: Options): Promise<string> {
   }
 
   // Detect the target
-  const target = options.targets.find((target) => {
-    return target.os === Deno.build.os && target.arch === Deno.build.arch;
-  });
+  const os = options.os ?? Deno.build.os;
+  const arch = options.arch ?? Deno.build.arch;
+  const target = options.targets.find((target) =>
+    target.os === os && target.arch === arch
+  );
 
   if (!target) {
     throw new Error("No target found");
@@ -50,7 +76,6 @@ export default async function downloadBin(options: Options): Promise<string> {
     .replaceAll("{target}", target.name)
     .replaceAll("{version}", options.version);
 
-  console.log(`Downloading ${url}...`);
   const tmp = await Deno.makeTempDir();
 
   await download(new URL(url), join(tmp, "tmp.tar.gz"));
@@ -100,15 +125,11 @@ export default async function downloadBin(options: Options): Promise<string> {
 }
 
 async function download(url: URL, dest: string): Promise<void> {
+  console.log(`Downloading ${url}...`);
+
   const blob = await (await fetch(url)).blob();
   const sha256sum = await (await fetch(url.href + ".sha256")).text();
   const content = new Uint8Array(await blob.arrayBuffer());
-
-  try {
-    await Deno.mkdir(dirname(dest), { recursive: true });
-  } catch {
-    // Directory exists
-  }
 
   await checkSha256sum(content, sha256sum);
   await Deno.writeFile(dest, content);
@@ -123,6 +144,7 @@ async function checkSha256sum(
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join(
     "",
   );
+
   sha256sum = sha256sum.split(/\s+/).shift()!;
 
   if (hashHex !== sha256sum) {

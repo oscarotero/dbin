@@ -11,7 +11,7 @@ const binfile = await dbin({
     "https://github.com/CloudCannon/pagefind/releases/download/{version}/pagefind-{version}-{target}.tar.gz",
   version: "v0.8.1",
   targets: [
-    { name: "x86_64-unknown-linux-gnu", os: "linux", arch: "x86_64" },
+    { name: "x86_64-unknown-linux-musl", os: "linux", arch: "x86_64" },
     { name: "x86_64-apple-darwin", os: "darwin", arch: "x86_64" },
     { name: "x86_64-pc-windows-msvc", os: "windows", arch: "x86_64" },
   ],
@@ -22,7 +22,7 @@ const binfile = await dbin({
 This function does the following:
 
 - Detects the current target (for example, for `linux` and `x86_64` the target
-  is `x86_64-unknown-linux-gnu`).
+  is `x86_64-unknown-linux-musl`).
 - Replace the variables `{version}` and `{target}` in the `pattern`url.
 - Download the file.
 - It also download the `.sha256` file and check the `SHA-256 checksum`.
