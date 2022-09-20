@@ -1,0 +1,32 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Run tests
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Setup Deno environment
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Verify formatting and lint
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          deno fmt --check
+          deno lint
+
+      - name: Install & run pagefind
+        run: deno run -A demos/pagefind.ts
+
+      - name: Install & run tailwind
+        run: deno run -A demos/tailwind.ts
