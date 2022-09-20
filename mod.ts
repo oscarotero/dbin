@@ -48,7 +48,7 @@ export interface Target {
   arch?: Arch;
 }
 
-export default async function downloadBin(options: Options): Promise<string> {
+export default async function main(options: Options): Promise<string> {
   const dest = Deno.build.os === "windows"
     ? resolve(options.dest) + ".exe"
     : resolve(options.dest);
@@ -87,23 +87,29 @@ export default async function downloadBin(options: Options): Promise<string> {
 
   // Download the file
   const tmp = await Deno.makeTempDir();
-  const ext = getExtension(url);
-
-  await download(new URL(url), join(tmp, `tmp${ext}`), checksumUrl);
 
   try {
-    await Deno.mkdir(dirname(dest), { recursive: true });
-  } catch {
-    // Destination directory exists
-  }
+    const ext = getExtension(url);
 
-  if (ext === ".tar.gz") {
-    await extractTarGz(tmp, dest);
-  } else {
-    await Deno.copyFile(join(tmp, `tmp${ext}`), dest);
-  }
+    // Download the file in the temporary directory
+    await download(new URL(url), join(tmp, `tmp${ext}`), checksumUrl);
 
-  await Deno.remove(tmp, { recursive: true });
+    try {
+      await Deno.mkdir(dirname(dest), { recursive: true });
+    } catch {
+      // Destination directory exists
+    }
+
+    // Extract the binary
+    if (ext === ".tar.gz") {
+      await extractTarGz(tmp, dest);
+    } else {
+      await Deno.copyFile(join(tmp, `tmp${ext}`), dest);
+    }
+  } finally {
+    // Remove the temporary directory
+    await Deno.remove(tmp, { recursive: true });
+  }
 
   // Change file permissions
   try {
@@ -144,7 +150,7 @@ function getExtension(path: string): string {
 }
 
 async function extractTarGz(directory: string, dest: string) {
-  // Extract the binary
+  // Decompress the gzip file
   const tgz = await Deno.open(join(directory, "tmp.tar.gz"));
   const tar = await Deno.create(join(directory, "tmp.tar"));
 
@@ -152,6 +158,7 @@ async function extractTarGz(directory: string, dest: string) {
     .pipeThrough(new DecompressionStream("gzip"))
     .pipeTo(tar.writable);
 
+  // Untar the file
   const reader = await Deno.open(join(directory, "tmp.tar"), { read: true });
   const untar = new Untar(reader);
 
