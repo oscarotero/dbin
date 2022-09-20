@@ -25,7 +25,6 @@ This function does the following:
   is `x86_64-unknown-linux-musl`).
 - Replace the variables `{version}` and `{target}` in the `pattern`url.
 - Download the file.
-- It also download the `.sha256` file and check the `SHA-256 checksum`.
 - Decompress the `.tar.gz` file.
 - Output to the `dest` file (`./_bin/pagefind` in the example). If the current
   os is Windows, the `.exe` extension is appended to the file name.
