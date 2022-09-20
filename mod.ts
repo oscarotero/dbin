@@ -100,7 +100,7 @@ export default async function downloadBin(options: Options): Promise<string> {
   if (ext === ".tar.gz") {
     await extractTarGz(tmp, dest);
   } else {
-    await Deno.rename(join(tmp, `tmp${ext}`), dest);
+    await Deno.copyFile(join(tmp, `tmp${ext}`), dest);
   }
 
   await Deno.remove(tmp, { recursive: true });
