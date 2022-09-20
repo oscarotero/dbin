@@ -1,5 +1,6 @@
 import {
   dirname,
+  extname,
   join,
   resolve,
 } from "https://deno.land/std@0.139.0/path/mod.ts";
@@ -12,6 +13,9 @@ type Arch = "x86_64" | "aarch64";
 export interface Options {
   /** Pattern to build the final URL download. It can contains {version} and {target} placeholders. */
   pattern: string;
+
+  /** Checksum pattern */
+  checksumPattern?: string;
 
   /** Version to download. It's used to replace the {version} placeholder in the pattern. */
   version: string;
@@ -41,7 +45,7 @@ export interface Options {
 export interface Target {
   name: string;
   os: OS;
-  arch: Arch;
+  arch?: Arch;
 }
 
 export default async function downloadBin(options: Options): Promise<string> {
@@ -64,51 +68,41 @@ export default async function downloadBin(options: Options): Promise<string> {
   const os = options.os ?? Deno.build.os;
   const arch = options.arch ?? Deno.build.arch;
   const target = options.targets.find((target) =>
-    target.os === os && target.arch === arch
+    target.os === os && (!target.arch || target.arch === arch)
   );
 
   if (!target) {
-    throw new Error("No target found");
+    throw new Error(`No binary found for your platform (${os}/${arch})`);
   }
 
-  // Download the tarball
+  // Generate the download URLs
   const url = options.pattern
     .replaceAll("{target}", target.name)
     .replaceAll("{version}", options.version);
 
+  const checksumUrl = options.checksumPattern?.replaceAll(
+    "{target}",
+    target.name,
+  )?.replaceAll("{version}", options.version);
+
+  // Download the file
   const tmp = await Deno.makeTempDir();
+  const ext = getExtension(url);
 
-  await download(new URL(url), join(tmp, "tmp.tar.gz"));
-
-  // Extract the binary
-  const tgz = await Deno.open(join(tmp, "tmp.tar.gz"));
-  const tar = await Deno.create(join(tmp, "tmp.tar"));
-
-  await tgz.readable
-    .pipeThrough(new DecompressionStream("gzip"))
-    .pipeTo(tar.writable);
-
-  const reader = await Deno.open(join(tmp, "tmp.tar"), { read: true });
-  const untar = new Untar(reader);
+  await download(new URL(url), join(tmp, `tmp${ext}`), checksumUrl);
 
   try {
     await Deno.mkdir(dirname(dest), { recursive: true });
   } catch {
-    // Directory exists
+    // Destination directory exists
   }
 
-  // Copy the first binary file found in the tarball
-  for await (const entry of untar) {
-    if (entry.type === "directory") {
-      continue;
-    }
-
-    const file = await Deno.create(dest);
-    await copy(entry, file);
-    file.close();
-    break;
+  if (ext === ".tar.gz") {
+    await extractTarGz(tmp, dest);
+  } else {
+    await Deno.rename(join(tmp, `tmp${ext}`), dest);
   }
-  reader.close();
+
   await Deno.remove(tmp, { recursive: true });
 
   // Change file permissions
@@ -124,15 +118,55 @@ export default async function downloadBin(options: Options): Promise<string> {
   return dest;
 }
 
-async function download(url: URL, dest: string): Promise<void> {
+async function download(
+  url: URL,
+  dest: string,
+  checksum?: string,
+): Promise<void> {
   console.log(`Downloading ${url}...`);
 
   const blob = await (await fetch(url)).blob();
-  const sha256sum = await (await fetch(url.href + ".sha256")).text();
   const content = new Uint8Array(await blob.arrayBuffer());
 
-  await checkSha256sum(content, sha256sum);
+  if (checksum) {
+    const sha256sum = await (await fetch(checksum)).text();
+    await checkSha256sum(content, sha256sum);
+  }
+
   await Deno.writeFile(dest, content);
+}
+
+function getExtension(path: string): string {
+  if (path.endsWith(".tar.gz")) {
+    return ".tar.gz";
+  }
+  return extname(path);
+}
+
+async function extractTarGz(directory: string, dest: string) {
+  // Extract the binary
+  const tgz = await Deno.open(join(directory, "tmp.tar.gz"));
+  const tar = await Deno.create(join(directory, "tmp.tar"));
+
+  await tgz.readable
+    .pipeThrough(new DecompressionStream("gzip"))
+    .pipeTo(tar.writable);
+
+  const reader = await Deno.open(join(directory, "tmp.tar"), { read: true });
+  const untar = new Untar(reader);
+
+  // Copy the first binary file found in the tarball
+  for await (const entry of untar) {
+    if (entry.type === "directory") {
+      continue;
+    }
+
+    const file = await Deno.create(dest);
+    await copy(entry, file);
+    file.close();
+    break;
+  }
+  reader.close();
 }
 
 async function checkSha256sum(
