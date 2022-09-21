@@ -52,13 +52,17 @@ export default async function main(options: Options): Promise<string> {
   const dest = Deno.build.os === "windows"
     ? resolve(options.dest) + ".exe"
     : resolve(options.dest);
+  const versions = JSON.parse(localStorage.getItem("dbin:versions") || "{}");
 
   // Check if the file already exists and return the path
   try {
     await Deno.stat(dest);
     if (!options.overwrite) {
-      console.log(`Using binary file at ${dest}`);
-      return dest;
+      // Check if the file has the same version
+      if (versions[dest] === options.version) {
+        console.log(`Using binary file at ${dest}`);
+        return dest;
+      }
     }
   } catch {
     // File does not exist
@@ -121,6 +125,11 @@ export default async function main(options: Options): Promise<string> {
   } catch {
     // Not supported on Windows
   }
+
+  // Save the version in the local storage
+  versions[dest] = options.version;
+  localStorage.setItem("dbin:versions", JSON.stringify(versions));
+
   return dest;
 }
 
