@@ -29,7 +29,11 @@ jobs:
           deno lint
 
       - name: Install & run pagefind
-        run: deno run -A demos/pagefind.ts
+        run: |
+          deno run -A demos/pagefind.ts
+          deno run -A demos/pagefind.ts
 
       - name: Install & run tailwind
-        run: deno run -A demos/tailwind.ts
+        run: |
+          deno run -A demos/tailwind.ts
+          deno run -A demos/tailwind.ts
