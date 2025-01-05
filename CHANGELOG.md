@@ -1,11 +1,18 @@
 <!-- deno-fmt-ignore-file -->
 
 # Changelog
-
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [0.3.0] - 2025-01-05
+### Changed
+- Update to Deno 2.
+- Version and target are included in the binary filename.
+
+### Removed
+- Store the version in localstorage.
 
 ## [0.2.1] - 2022-09-22
 ### Added
@@ -33,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.1.0] - 2022-09-17
 First version
 
+[0.3.0]: https://github.com/oscarotero/dbin/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/oscarotero/dbin/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/oscarotero/dbin/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/oscarotero/dbin/compare/v0.1.0...v0.1.1

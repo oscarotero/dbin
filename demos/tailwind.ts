@@ -3,7 +3,7 @@ import dbin from "../mod.ts";
 const binfile = await dbin({
   pattern:
     "https://github.com/tailwindlabs/tailwindcss/releases/download/{version}/tailwindcss-{target}",
-  version: "v3.1.8",
+  version: "v4.0.0-beta.1",
   targets: [
     { name: "linux-x64", os: "linux", arch: "x86_64" },
     { name: "linux-arm64", os: "linux", arch: "aarch64" },
@@ -14,6 +14,9 @@ const binfile = await dbin({
   dest: "./_bin/tailwind",
 });
 
-const process = Deno.run({ cmd: [binfile, "-h"] });
-await process.status();
-process.close();
+console.log("Binary file:", binfile);
+
+new Deno.Command(binfile, {
+  stdout: "inherit",
+  args: ["-h"],
+}).outputSync();
